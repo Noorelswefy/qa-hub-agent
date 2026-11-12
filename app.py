@@ -6,7 +6,7 @@ import io
 from datetime import datetime
 
 # Page Config
-st.set_page_config(page_title="Software Testing Hub - Community Hub", page_icon="🧪", layout="wide")
+st.set_page_config(page_title="Software Testing Intake 47 Hub - Community Hub", page_icon="🐞", layout="wide")
 
 # ITI-Inspired Theme & Mobile-First CSS
 st.markdown("""
@@ -187,7 +187,7 @@ def get_sheet_data():
 # --- Header ---
 st.markdown("""
 <div class="hub-banner">
-    <h1>🧪 Software Testing Hub - Community Hub</h1>
+    <h1>🐞 Software Testing Intake 47 Hub - Community Hub</h1>
     <p>No more digging through messy Drive folders or lost chat links — drop your labs, slides, and useful repos here so everyone finds what they need in seconds.</p>
 </div>
 """, unsafe_allow_html=True)
@@ -200,7 +200,6 @@ with tab1:
     if len(rows) > 1:
         data = rows[1:]
         
-        # Extract main course names (before ' / ' if nested)
         all_main_courses = sorted(list(set([r[0].split(" / ")[0] for r in data if len(r) > 0])))
         
         col_filter, col_search = st.columns([1, 2])
@@ -263,6 +262,8 @@ with tab2:
             "Subfolder / Topic *:", 
             placeholder="e.g., Labs or Lectures/Week 1"
         )
+        if not subfolder_input.strip():
+            st.caption("⚠️ Required — enter a folder or topic name to keep things organized.")
 
     # Build full folder path list & display string
     folder_parts = [target_course.strip()] if target_course else []
@@ -270,7 +271,6 @@ with tab2:
         folder_parts.extend([p.strip() for p in subfolder_input.split("/") if p.strip()])
     full_course_label = " / ".join(folder_parts)
 
-    if not subfolder_input.strip(): st.caption("⚠️ Please enter a subfolder/topic (e.g., Labs, Lectures, Summaries) to enable sharing.")
     source_type = st.radio("What are you sharing?", ["Upload a File", "Share a Link"], horizontal=True)
 
     if source_type == "Upload a File":
