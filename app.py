@@ -260,7 +260,7 @@ with tab2:
             target_course = st.text_input("New Course Name:", placeholder="e.g., Automation Testing")
     with col_c2:
         subfolder_input = st.text_input(
-            "Subfolder / Topic (Optional):", 
+            "Subfolder / Topic *:", 
             placeholder="e.g., Labs or Lectures/Week 1"
         )
 
@@ -270,11 +270,12 @@ with tab2:
         folder_parts.extend([p.strip() for p in subfolder_input.split("/") if p.strip()])
     full_course_label = " / ".join(folder_parts)
 
+    if not subfolder_input.strip(): st.caption("⚠️ Please enter a subfolder/topic (e.g., Labs, Lectures, Summaries) to enable sharing.")
     source_type = st.radio("What are you sharing?", ["Upload a File", "Share a Link"], horizontal=True)
 
     if source_type == "Upload a File":
         uploaded_file = st.file_uploader("Choose file", type=["pdf", "zip", "py", "docx", "txt", "ipynb", "rar", "xlsx", "pptx"])
-        if st.button("Upload File", type="primary") and uploaded_file and target_course:
+        if st.button("Upload File", type="primary") and uploaded_file and target_course and subfolder_input.strip():
             with st.spinner("Uploading to Drive and updating the hub..."):
                 try:
                     drive_s = get_drive_service()
@@ -301,7 +302,7 @@ with tab2:
         link_title = st.text_input("Title:", placeholder="e.g., ISTQB Foundation Syllabus or Lab 2 Repo")
         link_url = st.text_input("URL:", placeholder="https://...")
         
-        if st.button("Save Link", type="primary") and link_url and link_title and target_course:
+        if st.button("Save Link", type="primary") and link_url and link_title and target_course and subfolder_input.strip():
             try:
                 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
                 append_to_sheet([full_course_label, "Link", link_title, link_url, timestamp])
