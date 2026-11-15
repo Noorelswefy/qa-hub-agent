@@ -9,7 +9,7 @@ from datetime import datetime
 # Page Config
 st.set_page_config(page_title="Software Testing Intake 47 Hub - Community Hub", page_icon="🐞", layout="wide")
 
-# ITI-Inspired Theme & Mobile-First CSS
+# ITI-Inspired Theme CSS
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
@@ -18,7 +18,6 @@ html, body, [class*="css"] {
     font-family: 'Inter', sans-serif !important;
 }
 
-/* Header Banner */
 .hub-banner {
     background: linear-gradient(135deg, #9B1B20 0%, #6D1216 100%);
     color: #FFFFFF;
@@ -39,22 +38,6 @@ html, body, [class*="css"] {
     margin: 0;
     line-height: 1.5;
 }
-
-/* Resource Cards */
-.resource-card {
-    background-color: #FFFFFF;
-    border: 1px solid #E5E7EB;
-    border-left: 5px solid #9B1B20;
-    border-radius: 10px;
-    padding: 16px 20px;
-    margin-bottom: 12px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.04);
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-.resource-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 14px rgba(155, 27, 32, 0.12);
-}
 .badge-course {
     background-color: #9B1B20;
     color: #FFFFFF;
@@ -64,7 +47,6 @@ html, body, [class*="css"] {
     font-weight: 600;
     display: inline-block;
     margin-right: 6px;
-    margin-bottom: 4px;
 }
 .badge-path {
     background-color: #F3F4F6;
@@ -76,7 +58,6 @@ html, body, [class*="css"] {
     font-weight: 500;
     display: inline-block;
     margin-right: 6px;
-    margin-bottom: 4px;
 }
 .badge-type {
     background-color: #FEF2F2;
@@ -86,40 +67,6 @@ html, body, [class*="css"] {
     font-size: 0.78rem;
     font-weight: 500;
     display: inline-block;
-    margin-bottom: 4px;
-}
-.card-title {
-    font-size: 1.08rem;
-    font-weight: 600;
-    color: #1E2022 !important;
-    margin: 8px 0 4px 0;
-    display: block;
-    text-decoration: none;
-    word-break: break-word;
-}
-.card-title:hover {
-    color: #9B1B20 !important;
-    text-decoration: underline;
-}
-.card-meta {
-    font-size: 0.78rem;
-    color: #6B7280;
-}
-
-/* Mobile Responsive Adjustments */
-@media (max-width: 768px) {
-    .hub-banner {
-        padding: 18px 16px;
-    }
-    .hub-banner h1 {
-        font-size: 1.4rem;
-    }
-    .hub-banner p {
-        font-size: 0.9rem;
-    }
-    .resource-card {
-        padding: 14px;
-    }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -275,12 +222,7 @@ def sync_drive_to_sheet():
     return len(new_rows)
 
 # --- Header ---
-st.markdown("""
-<div class="hub-banner">
-    <h1>🐞 Software Testing Intake 47 Hub - Community Hub</h1>
-    <p>No more digging through messy Drive folders or lost chat links — drop your labs, slides, and useful repos here so everyone finds what they need in seconds.</p>
-</div>
-""", unsafe_allow_html=True)
+st.markdown('<div class="hub-banner"><h1>🐞 Software Testing Intake 47 Hub - Community Hub</h1><p>No more digging through messy Drive folders or lost chat links — drop your labs, slides, and useful repos here so everyone finds what they need in seconds.</p></div>', unsafe_allow_html=True)
 
 # --- Main Tabs ---
 tab1, tab2 = st.tabs(["Browse Resources", "Share a Resource"])
@@ -311,25 +253,20 @@ with tab1:
 
         for r in reversed(filtered_data):
             if len(r) >= 5:
-                course_path, stype, title, link, time = r[0], r[1], r[2], r[3], r[4]
+                course_path, stype, title, link, time = r[0].strip(), r[1].strip(), r[2].strip(), r[3].strip(), r[4].strip()
                 parts = course_path.split(" / ")
                 main_course = parts[0]
                 sub_path = " › ".join(parts[1:]) if len(parts) > 1 else ""
-                
                 type_label = "File" if stype == "File" else "Link"
-                sub_badge = f'<span class="badge-path">📁 {sub_path}</span>' if sub_path else ""
                 
-                st.markdown(f"""
-                <div class="resource-card">
-                    <div>
-                        <span class="badge-course">{main_course}</span>
-                        {sub_badge}
-                        <span class="badge-type">{type_label}</span>
-                    </div>
-                    <a class="card-title" href="{link}" target="_blank">{title} ↗</a>
-                    <div class="card-meta">Added on {time}</div>
-                </div>
-                """, unsafe_allow_html=True)
+                with st.container(border=True):
+                    badges = f'<span class="badge-course">{main_course}</span>'
+                    if sub_path:
+                        badges += f'<span class="badge-path">📁 {sub_path}</span>'
+                    badges += f'<span class="badge-type">{type_label}</span>'
+                    st.markdown(badges, unsafe_allow_html=True)
+                    st.markdown(f"#### [{title} ↗]({link})")
+                    st.caption(f"Added on {time}")
     else:
         st.info("Nothing here yet! Head over to 'Share a Resource' or sync existing files from Google Drive below.")
 
@@ -370,7 +307,6 @@ with tab2:
         if not subfolder_input.strip():
             st.caption("⚠️ Required — enter a folder or topic name to keep things organized.")
 
-    # Build full folder path list & display string
     folder_parts = [target_course.strip()] if target_course else []
     if subfolder_input.strip():
         folder_parts.extend([p.strip() for p in subfolder_input.split("/") if p.strip()])
