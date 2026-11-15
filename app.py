@@ -3,6 +3,7 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
 import io
+import re
 from datetime import datetime
 
 # Page Config
@@ -174,6 +175,18 @@ def append_to_sheet(row_data):
         body=body
     ).execute()
 
+def batch_append_to_sheet(rows_list):
+    if not rows_list:
+        return
+    service = get_sheets_service()
+    body = {'values': rows_list}
+    service.spreadsheets().values().append(
+        spreadsheetId=SPREADSHEET_ID,
+        range="Sheet1!A:E",
+        valueInputOption="USER_ENTERED",
+        body=body
+    ).execute()
+
 def get_sheet_data():
     try:
         service = get_sheets_service()
@@ -183,6 +196,83 @@ def get_sheet_data():
         return result.get('values', [])
     except Exception:
         return []
+
+def extract_drive_id(url):
+    match = re.search(r'/d/([a-zA-Z0-9_-]+)', url)
+    if match:
+        return match.group(1)
+    match_id = re.search(r'id=([a-zA-Z0-9_-]+)', url)
+    return match_id.group(1) if match_id else None
+
+def scan_drive_folder_recursive(service, folder_id, current_path_parts):
+    discovered_files = []
+    page_token = None
+    while True:
+        query = f"'{folder_id}' in parents and trashed=false"
+        response = service.files().list(
+            q=query,
+            fields="nextPageToken, files(id, name, mimeType, webViewLink, createdTime)",
+            pageSize=100,
+            pageToken=page_token
+        ).execute()
+        items = response.get('files', [])
+        for item in items:
+            if item['mimeType'] == 'application/vnd.google-apps.folder':
+                discovered_files.extend(
+                    scan_drive_folder_recursive(service, item['id'], current_path_parts + [item['name']])
+                )
+            else:
+                course_label = " / ".join(current_path_parts) if current_path_parts else "General / Uncategorized"
+                created_raw = item.get('createdTime', '')
+                try:
+                    dt = datetime.fromisoformat(created_raw.replace('Z', '+00:00'))
+                    formatted_time = dt.strftime("%Y-%m-%d %H:%M")
+                except Exception:
+                    formatted_time = datetime.now().strftime("%Y-%m-%d %H:%M")
+                discovered_files.append({
+                    'id': item['id'],
+                    'course_path': course_label,
+                    'title': item['name'],
+                    'link': item.get('webViewLink', ''),
+                    'time': formatted_time
+                })
+        page_token = response.get('nextPageToken')
+        if not page_token:
+            break
+    return discovered_files
+
+def sync_drive_to_sheet():
+    drive_s = get_drive_service()
+    existing_rows = get_sheet_data()
+    
+    existing_links = set()
+    existing_ids = set()
+    for r in existing_rows[1:]:
+        if len(r) >= 4:
+            link = r[3].strip()
+            existing_links.add(link)
+            fid = extract_drive_id(link)
+            if fid:
+                existing_ids.add(fid)
+
+    drive_files = scan_drive_folder_recursive(drive_s, MAIN_FOLDER_ID, [])
+    new_rows = []
+
+    for f in drive_files:
+        if f['id'] in existing_ids or f['link'] in existing_links:
+            continue
+        try:
+            drive_s.permissions().create(
+                fileId=f['id'],
+                body={'type': 'anyone', 'role': 'reader'}
+            ).execute()
+        except Exception:
+            pass
+        new_rows.append([f['course_path'], "File", f['title'], f['link'], f['time']])
+
+    if new_rows:
+        batch_append_to_sheet(new_rows)
+    return len(new_rows)
 
 # --- Header ---
 st.markdown("""
@@ -241,7 +331,22 @@ with tab1:
                 </div>
                 """, unsafe_allow_html=True)
     else:
-        st.info("Nothing here yet! Head over to 'Share a Resource' and drop the first file or link for the squad.")
+        st.info("Nothing here yet! Head over to 'Share a Resource' or sync existing files from Google Drive below.")
+
+    st.divider()
+    with st.expander("🔄 Drive Sync (Import existing files from Google Drive)"):
+        st.caption("Uploaded files directly to Google Drive? Click below to scan folders and import missing files into the hub.")
+        if st.button("Sync Drive Now"):
+            with st.spinner("Scanning Google Drive folders and syncing..."):
+                try:
+                    added_count = sync_drive_to_sheet()
+                    if added_count > 0:
+                        st.success(f"Synced {added_count} new file(s) from Google Drive! Refreshing...")
+                        st.rerun()
+                    else:
+                        st.info("Everything on Google Drive is already up to date in the hub.")
+                except Exception as e:
+                    st.error(f"Sync failed: {e}")
 
 with tab2:
     st.subheader("Drop a file or link for the track")
